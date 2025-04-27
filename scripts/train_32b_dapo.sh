@@ -2,7 +2,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # basics
 project_name='DAPO'
-exp_name='DAPO-DeepSeek-Distill'
+exp_name='DAPO-Qwen-32B'
 
 adv_estimator=grpo
 
@@ -15,7 +15,7 @@ clip_ratio_low=0.2
 clip_ratio_high=0.28
 
 max_prompt_length=2192
-max_response_length=13000
+max_response_length=$((1024 * 20))
 enable_overlong_buffer=True
 overlong_buffer_len=$((1024 * 4))
 overlong_penalty_factor=1.0
@@ -27,7 +27,7 @@ filter_groups_metric=acc
 max_num_gen_batches=10
 train_prompt_bsz=256
 gen_prompt_bsz=$((train_prompt_bsz * 3))
-n_resp_per_prompt=8
+n_resp_per_prompt=16
 train_prompt_mini_bsz=32
 
 # Ray
@@ -35,10 +35,10 @@ NNODES=4
 
 # Paths
 RAY_DATA_HOME="/home/share/reasoning"
-MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/DeepSeek-R1-Distill-Qwen-32B"}
+MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/Qwen2.5-32B"}
 CKPTS_DIR=${CKPTS_DIR:-"${RAY_DATA_HOME}/${project_name}/${exp_name}"}
-TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/sky_work_full_04_24.parquet"}
-TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/AIME_and_MATH_500.parquet"}
+TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/dapo-math-17k.parquet"}
+TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/aime-2024.parquet"}
 
 # Algorithm
 temperature=1.0
@@ -103,7 +103,7 @@ ray job submit --no-wait --runtime-env="./verl/trainer/runtime_env.yaml" \
     actor_rollout_ref.actor.grad_clip=1.0 \
     actor_rollout_ref.actor.loss_agg_mode=${loss_agg_mode} \
     actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.65 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.8 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=${gen_tp} \
     actor_rollout_ref.rollout.enable_chunked_prefill=True \
     actor_rollout_ref.rollout.max_num_batched_tokens=$((max_prompt_length + max_response_length)) \
@@ -128,8 +128,8 @@ ray job submit --no-wait --runtime-env="./verl/trainer/runtime_env.yaml" \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes="${NNODES}" \
     trainer.val_before_train=False \
-    trainer.test_freq=10 \
-    trainer.save_freq=10 \
-    trainer.total_epochs=2 \
+    trainer.test_freq=5 \
+    trainer.save_freq=20 \
+    trainer.total_epochs=1 \
     trainer.default_local_dir="${CKPTS_DIR}" \
     trainer.resume_mode=auto
