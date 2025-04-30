@@ -109,16 +109,17 @@ class AGPORewardManager:
                     print("[score]", score)
         
         if self.num_examine == 0:
-            length_reward = [0] * len(data)
+            length_reward = [1] * len(data)
             for _, group in problem_idx_mapping.items():
                 idx_all_correct = [i for i in group if reward_by_problem[i] == 1]
-                lengths = [length_by_response[i] for i in idx_all_correct]
-                if len(idx_all_correct) < len(group) and max(lengths) != min(lengths):
-                    for idx in idx_all_correct:
-                        length_ratio = (length_by_response[idx] - min(lengths)) / (max(lengths) - min(lengths))
-                        length_reward[idx] = 0.1 * (1 - length_ratio)
+                if idx_all_correct:
+                    lengths = [length_by_response[i] for i in idx_all_correct]
+                    if len(idx_all_correct) < len(group) and max(lengths) != min(lengths):
+                        for idx in idx_all_correct:
+                            length_ratio = (length_by_response[idx] - min(lengths)) / (max(lengths) - min(lengths))
+                            length_reward[idx] = 1 + 0.1 * (1 - length_ratio)
             length_reward = torch.tensor(length_reward).unsqueeze(1)
-            reward_tensor = reward_tensor + length_reward
+            reward_tensor = reward_tensor * length_reward
 
         if return_dict:
             return {

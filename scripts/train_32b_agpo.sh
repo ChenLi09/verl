@@ -4,14 +4,15 @@ exp_name='AGPO-Qwen3-8B'
 
 adv_estimator=agpo
 
-enable_filter_groups=True
-filter_groups_metric=acc
-max_num_gen_batches=10
 max_prompt_length=2192
 max_response_length=$((1024 * 8))
 train_prompt_bsz=256
 n_resp_per_prompt=16
 train_prompt_mini_bsz=32
+
+enable_filter_groups=True
+filter_groups_metric=acc
+max_num_gen_batches=10
 
 use_kl_in_reward=False
 kl_coef=0.0
