@@ -1,6 +1,6 @@
 # basics
 project_name='AGPO'
-exp_name='AGPO-Qwen-32B'
+exp_name='AGPO-Qwen3-8B'
 
 adv_estimator=agpo
 
@@ -8,7 +8,7 @@ enable_filter_groups=True
 filter_groups_metric=acc
 max_num_gen_batches=10
 max_prompt_length=2192
-max_response_length=$((1024 * 20))
+max_response_length=$((1024 * 8))
 train_prompt_bsz=256
 n_resp_per_prompt=16
 train_prompt_mini_bsz=32
@@ -26,10 +26,10 @@ NNODES=4
 
 # Paths
 RAY_DATA_HOME="/home/share/reasoning"
-MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/Qwen2.5-32B"}
+MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/Qwen3-8B"}
 CKPTS_DIR=${CKPTS_DIR:-"${RAY_DATA_HOME}/${project_name}/${exp_name}"}
-TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/dapo-math-17k.parquet"}
-TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/aime-2024.parquet"}
+TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/dapo-math-17k-qwen3.parquet"}
+TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/aime-2024-qwen3.parquet"}
 
 # Algorithm
 temperature=1.0
@@ -41,7 +41,8 @@ val_top_p=0.95
 val_top_k=20
 
 # Performance Related Parameter
-gen_tp=4
+sp_size=1
+gen_tp=1
 use_dynamic_bsz=True
 actor_ppo_max_token_len=$((max_prompt_length + max_response_length))
 infer_ppo_max_token_len=$((max_prompt_length + max_response_length))
@@ -76,6 +77,7 @@ ray job submit --address="http://10.55.251.20:8265" \
         actor_rollout_ref.actor.ppo_max_token_len_per_gpu=${actor_ppo_max_token_len} \
         actor_rollout_ref.actor.fsdp_config.param_offload=${offload} \
         actor_rollout_ref.actor.fsdp_config.optimizer_offload=${offload} \
+        actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
         actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=${infer_ppo_max_token_len} \
         actor_rollout_ref.rollout.tensor_model_parallel_size=${gen_tp} \
         actor_rollout_ref.rollout.name=vllm \
