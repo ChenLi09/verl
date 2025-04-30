@@ -920,7 +920,7 @@ class RayPPOTrainer:
         self.global_steps += 1
         last_val_metrics = None
 
-        new_batch = None
+        batch_buffer = None
         num_prompt_in_batch = 0
         num_gen_batches = 0
 
@@ -1046,7 +1046,7 @@ class RayPPOTrainer:
                                 kept_traj_idxs.append(idx)
 
                         batch = batch[kept_traj_idxs]
-                        new_batch = batch if new_batch is None else DataProto.concat([batch, new_batch])
+                        batch_buffer = DataProto.concat([batch, batch_buffer]) if batch_buffer else batch
 
                         prompt_bsz = self.config.data.train_batch_size
                         if num_prompt_in_batch < prompt_bsz:
@@ -1064,7 +1064,8 @@ class RayPPOTrainer:
                         else:
                             # Align the batch
                             traj_bsz = self.config.data.train_batch_size * self.config.actor_rollout_ref.rollout.n
-                            batch = new_batch[:traj_bsz]
+                            batch = batch_buffer[:traj_bsz]
+                            batch_buffer = batch_buffer[traj_bsz:] if batch_buffer[traj_bsz:] else None
 
                     batch.batch["response_mask"] = compute_response_mask(batch)
                     # balance the number of valid tokens on each dp rank.
@@ -1157,7 +1158,6 @@ class RayPPOTrainer:
                 metrics.update(compute_throughout_metrics(batch=batch, timing_raw=timing_raw, n_gpus=n_gpus))
 
                 metrics["train/num_gen_batches"] = num_gen_batches
-                new_batch = None
                 num_prompt_in_batch = 0
                 num_gen_batches = 0
 
