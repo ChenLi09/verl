@@ -1,14 +1,25 @@
 # basics
-project_name='GRPO'
-exp_name='GRPO-Qwen-32B'
+project_name='AGPO'
+exp_name='AGPO-Qwen-32B'
 
-adv_estimator=grpo
+adv_estimator=agpo
 
+enable_filter_groups=True
+filter_groups_metric=acc
+max_num_gen_batches=10
 max_prompt_length=2192
-max_response_length=12000
+max_response_length=$((1024 * 20))
 train_prompt_bsz=256
-n_resp_per_prompt=8
+n_resp_per_prompt=16
 train_prompt_mini_bsz=32
+
+use_kl_in_reward=False
+kl_coef=0.0
+use_kl_loss=False
+kl_loss_coef=0.0
+
+clip_ratio_low=0.2
+clip_ratio_high=0.28
 
 # Ray
 NNODES=4
@@ -17,8 +28,8 @@ NNODES=4
 RAY_DATA_HOME="/home/share/reasoning"
 MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/Qwen2.5-32B"}
 CKPTS_DIR=${CKPTS_DIR:-"${RAY_DATA_HOME}/${project_name}/${exp_name}"}
-TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/sky_work_full_04_24.parquet"}
-TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/AIME_and_MATH_500.parquet"}
+TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/dapo-math-17k.parquet"}
+TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/aime-2024.parquet"}
 
 # Algorithm
 temperature=1.0
@@ -27,14 +38,14 @@ top_k=-1 # 0 for HF rollout, -1 for vLLM rollout
 
 val_temperature=0.6
 val_top_p=0.95
-val_top_k=-1
+val_top_k=20
 
 # Performance Related Parameter
+gen_tp=4
 use_dynamic_bsz=True
 actor_ppo_max_token_len=$((max_prompt_length + max_response_length))
 infer_ppo_max_token_len=$((max_prompt_length + max_response_length))
 offload=True
-gen_tp=4
 
 
 ray job submit --address="http://10.55.251.20:8265" \
@@ -42,7 +53,11 @@ ray job submit --address="http://10.55.251.20:8265" \
     --no-wait \
     -- python3 -m verl.trainer.main_ppo \
         algorithm.adv_estimator=${adv_estimator} \
-        algorithm.kl_ctrl.kl_coef=0.001 \
+        algorithm.use_kl_in_reward=${use_kl_in_reward} \
+        algorithm.kl_ctrl.kl_coef=${kl_coef} \
+        algorithm.filter_groups.enable=${enable_filter_groups} \
+        algorithm.filter_groups.metric=${filter_groups_metric} \
+        algorithm.filter_groups.max_num_gen_batches=${max_num_gen_batches} \
         data.train_files="${TRAIN_FILE}" \
         data.val_files="${TEST_FILE}" \
         data.train_batch_size=${train_prompt_bsz} \
@@ -53,9 +68,10 @@ ray job submit --address="http://10.55.251.20:8265" \
         actor_rollout_ref.model.enable_gradient_checkpointing=True \
         actor_rollout_ref.actor.optim.lr=1e-6 \
         actor_rollout_ref.actor.ppo_mini_batch_size=${train_prompt_mini_bsz} \
-        actor_rollout_ref.actor.use_kl_loss=True \
-        actor_rollout_ref.actor.kl_loss_coef=0.001 \
-        actor_rollout_ref.actor.kl_loss_type=low_var_kl \
+        actor_rollout_ref.actor.use_kl_loss=${use_kl_loss} \
+        actor_rollout_ref.actor.kl_loss_coef=${kl_loss_coef} \
+        actor_rollout_ref.actor.clip_ratio_low=${clip_ratio_low} \
+        actor_rollout_ref.actor.clip_ratio_high=${clip_ratio_high} \
         actor_rollout_ref.actor.use_dynamic_bsz=${use_dynamic_bsz} \
         actor_rollout_ref.actor.ppo_max_token_len_per_gpu=${actor_ppo_max_token_len} \
         actor_rollout_ref.actor.fsdp_config.param_offload=${offload} \
@@ -81,14 +97,15 @@ ray job submit --address="http://10.55.251.20:8265" \
         actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=${infer_ppo_max_token_len} \
         actor_rollout_ref.ref.log_prob_use_dynamic_bsz=${use_dynamic_bsz} \
         actor_rollout_ref.ref.fsdp_config.param_offload=${offload} \
-        trainer.logger=['console'] \
+        reward_model.reward_manager=agpo \
+        trainer.logger=['console','wandb'] \
         trainer.project_name="${project_name}" \
         trainer.experiment_name="${exp_name}" \
         trainer.default_local_dir="${CKPTS_DIR}" \
-        trainer.val_before_train=True \
         trainer.n_gpus_per_node=8 \
         trainer.nnodes="${NNODES}" \
-        trainer.save_freq=10 \
+        trainer.val_before_train=True \
         trainer.test_freq=10 \
+        trainer.save_freq=50 \
         trainer.total_epochs=1 \
         trainer.resume_mode=auto
