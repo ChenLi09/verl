@@ -1017,7 +1017,9 @@ class RayPPOTrainer:
                         else:
                             batch.batch["token_level_rewards"] = batch.batch["token_level_scores"]
                     
-                    if self.config.algorithm.filter_groups.enable and self.global_steps > 10:
+                    if self.config.algorithm.filter_groups.enable:
+                        num_gen_batches += 1
+
                         # NOTE: When prompts after filtering is less than train batch size,
                         # we skip to the next generation batch
                         metric_name = self.config.algorithm.filter_groups.metric
@@ -1066,6 +1068,8 @@ class RayPPOTrainer:
                             traj_bsz = self.config.data.train_batch_size * self.config.actor_rollout_ref.rollout.n
                             batch = batch_buffer[:traj_bsz]
                             batch_buffer = batch_buffer[traj_bsz:] if batch_buffer[traj_bsz:] else None
+                            num_prompt_in_batch = len(batch_buffer) / self.config.actor_rollout_ref.rollout.n if batch_buffer else 0
+                            num_gen_batches = 0
 
                     batch.batch["response_mask"] = compute_response_mask(batch)
                     # balance the number of valid tokens on each dp rank.
@@ -1151,15 +1155,11 @@ class RayPPOTrainer:
                             self._save_checkpoint()
 
                 # collect metrics
-                metrics.update(compute_data_metrics(batch=batch, use_critic=self.use_critic, tokenizer=self.tokenizer))
+                metrics.update(compute_data_metrics(batch=batch, use_critic=self.use_critic))
                 metrics.update(compute_timing_metrics(batch=batch, timing_raw=timing_raw))
                 # TODO: implement actual tflpo and theoretical tflpo
                 n_gpus = self.resource_pool_manager.get_n_gpus()
                 metrics.update(compute_throughout_metrics(batch=batch, timing_raw=timing_raw, n_gpus=n_gpus))
-
-                metrics["train/num_gen_batches"] = num_gen_batches
-                num_prompt_in_batch = 0
-                num_gen_batches = 0
 
                 # TODO: make a canonical logger that supports various backend
                 logger.log(data=metrics, step=self.global_steps)

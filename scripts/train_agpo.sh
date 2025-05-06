@@ -6,7 +6,7 @@ adv_estimator=agpo
 
 max_prompt_length=2192
 max_response_length=$((1024 * 8))
-train_prompt_bsz=256
+train_prompt_bsz=128
 n_resp_per_prompt=16
 train_prompt_mini_bsz=32
 
@@ -108,7 +108,7 @@ ray job submit --address="http://10.55.251.20:8265" \
         trainer.n_gpus_per_node=8 \
         trainer.nnodes="${NNODES}" \
         trainer.val_before_train=True \
-        trainer.test_freq=10 \
-        trainer.save_freq=50 \
+        trainer.test_freq=5 \
+        trainer.save_freq=20 \
         trainer.total_epochs=1 \
         trainer.resume_mode=auto
