@@ -877,6 +877,11 @@ class RayPPOTrainer:
         """Wrapper for generate_sequences that catches errors and skips the batch if it fails"""
         try:
             return self.actor_rollout_wg.generate_sequences(batch)
+        except torch.OutOfMemoryError as e:
+            print(f"CRITICAL: Out of memory error occurred. Program interrupted.")
+            print(f"Error details: {str(e)}")
+            import sys
+            sys.exit(1)  # Exit with error code 1
         except Exception as e:
             print(f"ERROR: Generation failed, skipping this batch: {str(e)}")
             return None
