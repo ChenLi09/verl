@@ -196,6 +196,9 @@ def compute_agpo_outcome_advantage(
     id2score = defaultdict(list)
     id2mean = {}
     id2std = {}
+    scaling_factor = 0.10
+    
+
 
     with torch.no_grad():
         bsz = scores.shape[0]
@@ -210,17 +213,48 @@ def compute_agpo_outcome_advantage(
                 id2std[idx] = torch.std(torch.tensor([id2score[idx]]))
             else:
                 raise ValueError(f"no score in prompt index: {idx}")
+            
+        all_correct_count = 0
+        all_incorrect_count = 0
+        all_correct_count_dict = [0] * bsz
+        all_incorrect_count_dict = [0] * bsz
+        advantage_weights = torch.zeros(bsz)
+        valid_indices = []
+        
+        # First pass: identify all-correct and all-wrong cases
         for i in range(bsz):
             if id2mean[index[i]] == 1 and id2std[index[i]] == 0:
-                scores[i] = torch.tensor(1.0)
+                all_correct_count += 1
+                all_correct_count_dict[i] = 1
+            elif id2mean[index[i]] == 0 and id2std[index[i]] == 0:
+                all_incorrect_count += 1
+                all_incorrect_count_dict[i] = 1
+            else:
+                advantage_weights[i] = 1 - id2mean[index[i]]
+                valid_indices.append(i)         
+
+        # Only apply softmax to valid cases
+        if len(valid_indices) > 0:
+            valid_weights = advantage_weights[valid_indices]
+            valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * len(valid_indices)
+            advantage_weights[valid_indices] = valid_weights
+
+        all_correct_ratio = all_correct_count / bsz
+        all_incorrect_ratio = all_incorrect_count / bsz
+
+        for i in range(bsz):
+            if all_correct_count_dict[i] == 1:
+                scores[i] = torch.tensor(scaling_factor / all_correct_ratio)
                 continue
-            if id2mean[index[i]] == 0 and id2std[index[i]] == 0:
-                scores[i] = torch.tensor(-1.0)
+            if all_incorrect_count_dict[i] == 1:
+                scores[i] = torch.tensor(-1.0 * scaling_factor / all_incorrect_ratio)
                 continue
             if norm_adv_by_std_in_grpo:
                 scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
             else:
                 scores[i] = scores[i] - id2mean[index[i]]
+            scores[i] = scores[i] * advantage_weights[i]
+
         scores = scores.unsqueeze(-1) * response_mask
 
     return scores, scores
