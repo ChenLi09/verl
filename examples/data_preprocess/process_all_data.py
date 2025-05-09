@@ -50,6 +50,7 @@ def check_token_lengths(question, answer, max_question_tokens=2096, max_answer_t
     return True
 
 def format_question(question_text):
+    return question_text.strip()
     instruction = "Please reason step by step and output the final answer within \\boxed{}.\n\n"
     
     formatted_content = question_text.strip() + instruction
@@ -382,7 +383,13 @@ try:
                 
                 # Extract relevant fields
                 question = item.get("prompt", "")[0]["content"]
-                answer = item.get("reward_model", "")["ground_truth"][0]
+                raw_answer = item.get("reward_model", {}).get("ground_truth", "")
+                parsed_answer = json.loads(raw_answer)
+                # 提取第一个答案
+                if parsed_answer:
+                    answer = parsed_answer[0]
+                else: 
+                    continue
                 model_difficulty = item.get("extra_info", None)["model_difficulty"]["DeepSeek-R1-Distill-Qwen-7B"]
                 
                 
