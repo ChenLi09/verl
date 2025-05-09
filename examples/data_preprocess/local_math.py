@@ -19,15 +19,16 @@ def load_local_dataset(file_path):
         print(f"Warning: Local dataset file {file_path} does not exist")
         return datasets.Dataset.from_dict({"problem": [], "solution": []})
 
-    data = {"question": [], "solution": []}
+    data = {"question": [], "answer": []}
 
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             try:
                 item = json.loads(line.strip())
-                # Adjust these keys based on your local dataset structure
-                data["question"].append(item.get("question", ""))
-                data["solution"].append(item.get("answer", ""))
+                if item["extra_params"]["level"] == 3:
+                    # Adjust these keys based on your local dataset structure
+                    data["question"].append(item["question"])
+                    data["answer"].append(item["answer"])
             except json.JSONDecodeError:
                 print(f"Warning: Could not parse line: {line[:100]}...")
 
@@ -36,14 +37,14 @@ def load_local_dataset(file_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--local_dir', default='~/data/math')
+    parser.add_argument('--local_dir', default='/home/share/reasoning')
     parser.add_argument('--hdfs_dir', default=None)
-    parser.add_argument('--local_dataset', default='~/data/skywork_math_sample_10k.jsonl')
+    parser.add_argument('--local_dataset', default='/home/share/reasoning/rl_math_data.jsonl')
 
     args = parser.parse_args()
-    tokenizer = AutoTokenizer.from_pretrained("/home/share/reasoning/Qwen2.5-32B")
+    tokenizer = AutoTokenizer.from_pretrained("/home/share/reasoning/Qwen3-8B")
 
-    instruction_following = "Let's think step by step and output the final answer within \\boxed{}."
+    # prompt_template = "{question} Let's think step by step and output the final answer within \\boxed{}."
 
     # add a row to each data item that represents a unique id
     def train_make_map_fn(split):
@@ -51,27 +52,16 @@ if __name__ == '__main__':
         def process_fn(example, idx):
             if split == 'local':
                 question = example.pop('question')
-                answer = example.pop('solution')
+                answer = example.pop('answer')
             else:
                 question = example.pop('problem')
                 solution = example.pop('solution')
                 answer = extract_answer(solution)
 
-            question = question + ' ' + instruction_following
-
-            if answer.startswith('[') and answer.endswith(']'):
-                try:
-                    # Try to parse as JSON
-                    answer_list = json.loads(answer)
-                    if isinstance(answer_list, list) and len(answer_list) > 0:
-                        # Take the first item if it's a list
-                        answer = answer_list[0]
-                except json.JSONDecodeError:
-                    # If not valid JSON, keep as is
-                    pass
+            # question = prompt_template.format(question=question)
 
             data = {
-                "data_source": 'local_math',
+                "data_source": 'math_agpo',
                 "prompt": [{
                     "role": "user",
                     "content": question
@@ -94,7 +84,7 @@ if __name__ == '__main__':
     train_dataset = train_dataset.map(function=train_make_map_fn('local'), with_indices=True)
     print(f"Loaded local dataset with {len(train_dataset)} examples")
 
-    max_token_length = 2192
+    max_token_length = 2048
 
     def filter_by_token_length(example):
         question = example['prompt'][0]['content']
@@ -123,7 +113,7 @@ if __name__ == '__main__':
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir
 
-    train_dataset.to_parquet(os.path.join(local_dir, 'sky_work_10k_04_21.parquet'))
+    train_dataset.to_parquet(os.path.join(local_dir, 'rl_math_data.parquet'))
 
     if hdfs_dir is not None:
         makedirs(hdfs_dir)
