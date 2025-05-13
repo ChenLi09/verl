@@ -7,20 +7,20 @@ import hashlib
 from transformers import AutoTokenizer
 
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained("/home/yangkai/models/Qwen2.5-32B-Instruct")
+tokenizer = AutoTokenizer.from_pretrained("/home/share/reasoning/Qwen3-8B")
 
 # Create output directory
-output_dir = "/home/yangkai/data/data_process"
-os.makedirs(output_dir, exist_ok=True)
+output_dir = "/home/share/reasoning"
+merged_data_path = os.path.join(output_dir, "rl_math_data.jsonl")
 
 # Path for the final processed data
-orz_math_path = "/home/yangkai/data/data_process/orz_math_13k_collection_hard.json"
-additional_dataset_path = "/home/yangkai/data/data_process/hard_problems_with_rate.jsonl"
-merged_data_path = "/home/yangkai/data/data_process/final_merged_math_data.jsonl"
+data_dir = "/home/share/reasoning/raw_data"
+orz_math_path = os.path.join(data_dir, "orz_math_13k_collection_hard.json")
+additional_dataset_path = os.path.join(data_dir, "hard_problems_with_rate.jsonl")
+big_math_rl_processed_path = os.path.join(data_dir, "big_math_rl_filtered.jsonl")
+dapo_math_processed_path = os.path.join(data_dir, "dapo_math_filtered.jsonl")
+skywork_math_processed_path = os.path.join(data_dir, "skywork_math_filtered.jsonl")
 
-big_math_rl_processed_path = os.path.join(output_dir, "big_math_rl_filtered.jsonl")
-dapo_math_processed_path = os.path.join(output_dir, "dapo_math_filtered.jsonl")
-skywork_math_processed_path = os.path.join(output_dir, "skywork_math_filtered.jsonl")
 
 # Function to create a hash of the question content for deduplication
 def get_question_hash(question):
@@ -28,8 +28,9 @@ def get_question_hash(question):
     normalized_question = ' '.join(question.strip().lower().split())
     return hashlib.md5(normalized_question.encode('utf-8')).hexdigest()
 
+
 # Function to check token length using the specified tokenizer
-def check_token_lengths(question, answer, max_question_tokens=2096, max_answer_tokens=100):
+def check_token_lengths(question, answer, max_question_tokens=2048, max_answer_tokens=100):
     if not question or not answer:
         # If either question or answer is empty, skip this item
         return False
@@ -49,18 +50,12 @@ def check_token_lengths(question, answer, max_question_tokens=2096, max_answer_t
 
     return True
 
+
 def format_question(question_text):
     return question_text.strip()
-    instruction = "Please reason step by step and output the final answer within \\boxed{}.\n\n"
-    
-    formatted_content = question_text.strip() + instruction
-    
-    # Create the conversation format
-    conversation = [{"content": formatted_content, "role": "user"}]
-    
-    return json.dumps(conversation)
 
-print("Processing datasets...")
+
+print("Processing datasets...\n")
 
 # Process the dataset
 filtered_count = 0
@@ -121,7 +116,8 @@ except Exception as e:
     print(f"Error processing orz_math data: {e}")
 
 print(f"Orz Math dataset: processed {orz_filtered} unique items out of {orz_count} total")
-print(f"Skipped {orz_token_filtered} examples due to token length limits.")
+print(f"Skipped {orz_token_filtered} examples due to token length limits.\n")
+
 
 # Now read the additional dataset and merge
 print(f"Loading and merging additional dataset from {additional_dataset_path}...")
@@ -196,6 +192,10 @@ try:
 except FileNotFoundError:
     print(f"Warning: Additional dataset file not found at {additional_dataset_path}")
 
+print(f"GR Math dataset: processed {add_filtered} unique items out of {add_total} total")
+print(f"Skipped {add_token_filtered} examples due to token length limits.\n")
+
+
 # Process Big-Math-RL-Verified dataset
 print("Loading Big-Math-RL-Verified dataset...")
 print("Note: This dataset is gated. Make sure you're authenticated with `huggingface-cli login`")
@@ -236,14 +236,14 @@ try:
                 
                 # Determine level based on solve rate
                 level = None
-                if 0.15 <= solve_rate <= 0.2:
+                if 0.1 <= solve_rate <= 0.15:
                     level = 1
                     big_math_filtered_by_rate += 1
-                elif solve_rate < 0.1:
-                    level = 3
-                    big_math_filtered_by_rate += 1
-                elif 0.1 <= solve_rate < 0.15:
+                elif 0.05 <= solve_rate < 0.1:
                     level = 2
+                    big_math_filtered_by_rate += 1
+                elif solve_rate < 0.05:
+                    level = 3
                     big_math_filtered_by_rate += 1
                 
                 if level is not None:
@@ -264,7 +264,7 @@ try:
                     if question_hash not in seen_questions:
                         seen_questions.add(question_hash)
                         all_items.append(standardized_item)
-                        outfile.write(json.dumps(standardized_item) + "\n")
+                        outfile.write(json.dumps(standardized_item, ensure_ascii=False) + "\n")
                         big_math_unique += 1
     
     print(f"Big-Math-RL processing complete:")
@@ -272,11 +272,12 @@ try:
     print(f"Examples filtered by solve rate criteria: {big_math_filtered_by_rate}")
     print(f"Skipped {big_math_token_filtered} examples due to token length limits.")
     print(f"Unique examples after deduplication: {big_math_unique}")
-    print(f"Filtered data saved to {big_math_rl_processed_path}")
+    print(f"Filtered data saved to {big_math_rl_processed_path}\n")
 except Exception as e:
     print(f"Error processing Big-Math-RL dataset: {e}")
     print("If this is an authentication error, please run: huggingface-cli login")
     print("Then enter your Hugging Face access token when prompted")
+
 
 # Process DAPO-Math-17k dataset
 print("Loading DAPO-Math-17k dataset...")
@@ -317,13 +318,13 @@ try:
                 
                 # Determine level based on solve rate
                 level = None
-                if 0.4 <= solve_rate <= 0.5:
+                if 0.3 <= solve_rate <= 0.4:
                     level = 1
                     dapo_math_filtered_by_rate += 1
-                elif 0.2 <= solve_rate < 0.4:
+                elif 0.1 <= solve_rate < 0.3:
                     level = 2
                     dapo_math_filtered_by_rate += 1
-                elif solve_rate < 0.2:
+                elif solve_rate < 0.1:
                     level = 3
                     dapo_math_filtered_by_rate += 1
                 else:
@@ -347,7 +348,7 @@ try:
                 if question_hash not in seen_questions:
                     seen_questions.add(question_hash)
                     all_items.append(standardized_item)
-                    outfile.write(json.dumps(standardized_item) + "\n")
+                    outfile.write(json.dumps(standardized_item, ensure_ascii=False) + "\n")
                     dapo_math_unique += 1
     
     print(f"DAPO-Math processing complete:")
@@ -355,9 +356,10 @@ try:
     print(f"Examples filtered by solve rate criteria: {dapo_math_filtered_by_rate}")
     print(f"Skipped {dapo_math_token_filtered} examples due to token length limits.")
     print(f"Unique examples after deduplication: {dapo_math_unique}")
-    print(f"Filtered data saved to {dapo_math_processed_path}")
+    print(f"Filtered data saved to {dapo_math_processed_path}\n")
 except Exception as e:
     print(f"Error processing DAPO-Math dataset: {e}")
+
 
 # Process Skywork/Skywork-OR1-RL-Data dataset
 print("Loading Skywork/Skywork-OR1-RL-Data dataset...")
@@ -404,13 +406,13 @@ try:
                 
                 # Determine level based on solve rate
                 level = None
-                if 6 <= model_difficulty <= 11:
+                if 6 <= model_difficulty <= 8:
                     level = 1
                     skywork_math_filtered_by_rate += 1
-                elif 12 <= model_difficulty <= 14:
+                elif 9 <= model_difficulty <= 11:
                     level = 2
                     skywork_math_filtered_by_rate += 1
-                elif 15 <= model_difficulty <= 16:
+                elif 12 <= model_difficulty <= 15:
                     level = 3
                     skywork_math_filtered_by_rate += 1
                 else:
@@ -428,13 +430,13 @@ try:
                 }
                 
                 # Get hash for deduplication - use the original question text for hashing
-                question_hash = get_question_hash(question_text if 'question_text' in locals() else question)
+                question_hash = get_question_hash(question)
                 
                 # Add if not a duplicate
                 if question_hash not in seen_questions:
                     seen_questions.add(question_hash)
                     all_items.append(standardized_item)
-                    outfile.write(json.dumps(standardized_item) + "\n")
+                    outfile.write(json.dumps(standardized_item, ensure_ascii=False) + "\n")
                     skywork_math_unique += 1
     
     print(f"Skywork Math processing complete:")
@@ -442,14 +444,16 @@ try:
     print(f"Examples filtered by solve rate criteria: {skywork_math_filtered_by_rate}")
     print(f"Skipped {skywork_math_token_filtered} examples due to token length limits.")
     print(f"Unique examples after deduplication: {skywork_math_unique}")
-    print(f"Filtered data saved to {skywork_math_processed_path}")
+    print(f"Filtered data saved to {skywork_math_processed_path}\n")
 except Exception as e:
     print(f"Error processing Skywork Math dataset: {e}")
+
 
 # Write the final merged and deduplicated dataset
 with open(merged_data_path, 'w', encoding='utf-8') as outfile:
     for item in all_items:
-        outfile.write(json.dumps(item) + "\n")
+        outfile.write(json.dumps(item, ensure_ascii=False) + "\n")
+
 
 # Print summary of processed datasets
 print(f"Additional dataset: processed {add_filtered} unique items out of {add_total} total (skipped {add_token_filtered} due to token length)")
