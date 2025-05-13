@@ -13,6 +13,15 @@ def extract_answer(solution_str):
     return remove_boxed(last_boxed_only_string(solution_str))
 
 
+def is_numbers(s):
+    s = s.strip()
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def load_local_dataset(file_path):
     """Load a local dataset from a jsonl file."""
     if not os.path.exists(file_path):
@@ -21,16 +30,28 @@ def load_local_dataset(file_path):
 
     data = {"question": [], "answer": []}
 
+    bigmath_cnt = 0
+    source_cnt = {}
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             try:
                 item = json.loads(line.strip())
-                if item["extra_params"]["level"] == 3:
-                    # Adjust these keys based on your local dataset structure
+                if item["extra_params"]["level"] == 3 and is_numbers(item["answer"]):
+                    source = item["extra_params"]["source"]
+                    if source == "big_math_rl_verified":
+                        bigmath_cnt += 1
+                        if bigmath_cnt > 5000:
+                            continue
+
                     data["question"].append(item["question"])
                     data["answer"].append(item["answer"])
+
+                    if source not in source_cnt:
+                        source_cnt[source] = 0
+                    source_cnt[source] += 1
             except json.JSONDecodeError:
                 print(f"Warning: Could not parse line: {line[:100]}...")
+    print(source_cnt)
 
     return datasets.Dataset.from_dict(data)
 
@@ -83,16 +104,6 @@ if __name__ == '__main__':
     train_dataset = load_local_dataset(args.local_dataset)
     train_dataset = train_dataset.map(function=train_make_map_fn('local'), with_indices=True)
     print(f"Loaded local dataset with {len(train_dataset)} examples")
-
-    max_token_length = 2048
-
-    def filter_by_token_length(example):
-        question = example['prompt'][0]['content']
-        token_length = len(tokenizer.encode(question))
-        return token_length <= max_token_length
-
-    # Filter the datasets
-    train_dataset = train_dataset.filter(filter_by_token_length)
 
 
     print(f"Train dataset size: {len(train_dataset)}")
