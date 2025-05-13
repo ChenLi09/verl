@@ -229,7 +229,9 @@ def is_correct_strict_box(
 
     # Extract and check the boxed answer
     boxed_pred = last_boxed_only_string(pred)
-    extracted_pred = remove_boxed(boxed_pred) if boxed_pred is not None else "[INVALID]"
+    extracted_pred = normalize_final_answer(remove_boxed(boxed_pred)) if boxed_pred is not None else "[INVALID]"
+
+    gt = normalize_final_answer(gt)
 
     return 1 if (extracted_pred == gt) else -1, extracted_pred
 
