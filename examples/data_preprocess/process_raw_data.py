@@ -4,16 +4,29 @@ import os
 import re
 from tqdm import tqdm
 import hashlib
-from transformers import AutoTokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import torch
 
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained("/home/share/reasoning/Qwen3-8B")
+# tokenizer = AutoTokenizer.from_pretrained("/home/yangkai/models/Qwen2.5-32B")
+
+print("Loading math classification model...")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+math_model_name = "lschlessinger/bert-finetuned-math-prob-classification"
+math_tokenizer = AutoTokenizer.from_pretrained(math_model_name)
+math_model = AutoModelForSequenceClassification.from_pretrained(math_model_name).to(device)
+math_model.eval()
+id2label = math_model.config.id2label
 
 # Create output directory
+# output_dir = "/home/yangkai/data/data_process"
+# merged_data_path = os.path.join(output_dir, "rl_math_data.jsonl")
 output_dir = "/home/share/reasoning"
 merged_data_path = os.path.join(output_dir, "rl_math_data.jsonl")
 
 # Path for the final processed data
+# data_dir = "/home/yangkai/data/data_process"
 data_dir = "/home/share/reasoning/raw_data"
 orz_math_path = os.path.join(data_dir, "orz_math_13k_collection_hard.json")
 additional_dataset_path = os.path.join(data_dir, "hard_problems_with_rate.jsonl")
@@ -21,6 +34,13 @@ big_math_rl_processed_path = os.path.join(data_dir, "big_math_rl_filtered.jsonl"
 dapo_math_processed_path = os.path.join(data_dir, "dapo_math_filtered.jsonl")
 skywork_math_processed_path = os.path.join(data_dir, "skywork_math_filtered.jsonl")
 
+def classify_math_question(question):
+    inputs = math_tokenizer(question, return_tensors="pt", truncation=True, max_length=512).to(device)
+    with torch.no_grad():
+        outputs = math_model(**inputs)
+        logits = outputs.logits
+        predicted_class_id = torch.argmax(logits, dim=-1).item()
+    return id2label[predicted_class_id]
 
 # Function to create a hash of the question content for deduplication
 def get_question_hash(question):
@@ -224,7 +244,7 @@ try:
                 solve_rate = item.get("llama8b_solve_rate")
                 
                 # Skip if the item doesn't have llama8b_solve_rate or it's not <= 0.4
-                if solve_rate is None or solve_rate > 0.2:
+                if solve_rate is None or solve_rate > 0.15:
                     continue
                 
                 problem = format_question(problem)
@@ -396,7 +416,7 @@ try:
                 
                 
                 
-                if model_difficulty is None or model_difficulty < 6:
+                if model_difficulty is None or model_difficulty < 5:
                     continue
                 
                 # Skip if token length exceeds limits
@@ -406,7 +426,7 @@ try:
                 
                 # Determine level based on solve rate
                 level = None
-                if 6 <= model_difficulty <= 8:
+                if 5 <= model_difficulty <= 8:
                     level = 1
                     skywork_math_filtered_by_rate += 1
                 elif 9 <= model_difficulty <= 11:
@@ -448,6 +468,15 @@ try:
 except Exception as e:
     print(f"Error processing Skywork Math dataset: {e}")
 
+print("Classifying math category for each question...")
+for item in tqdm(all_items):
+    question = item.get("question", "")
+    try:
+        math_category = classify_math_question(question)
+        item["extra_params"]["math_category"] = math_category
+    except Exception as e:
+        print(f"Failed to classify question: {e}")
+        item["extra_params"]["math_category"] = "Unknown"
 
 # Write the final merged and deduplicated dataset
 with open(merged_data_path, 'w', encoding='utf-8') as outfile:
