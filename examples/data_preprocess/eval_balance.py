@@ -9,8 +9,8 @@ from openai import OpenAI
 import concurrent.futures
 from collections import defaultdict
 
-# Function to load and sample math problems
 
+# Function to load and sample math problems
 def load_and_sample_math_problems(file_path: str, sample_size_per_group: int = 30) -> List[Dict[str, Any]]:
     grouped_problems = defaultdict(list)
 
@@ -38,10 +38,12 @@ def load_and_sample_math_problems(file_path: str, sample_size_per_group: int = 3
     print(f"Total sampled problems: {len(sampled_problems)}")
     return sampled_problems
 
+
 def evaluate_answer(response: str, ground_truth: str) -> int:
     from eval_compute_score import compute_score
     
     return compute_score(response, ground_truth)
+
 
 # Function to send requests to vLLM service
 def query_vllm(prompt: str, params: Dict[str, Any]) -> str:
@@ -65,6 +67,7 @@ def query_vllm(prompt: str, params: Dict[str, Any]) -> str:
         print(f"Request failed: {e}")
         return ""
 
+
 # Function to process a single problem (for concurrent execution)
 def process_problem(problem: Dict[str, Any], vllm_params: Dict[str, Any]) -> Dict[str, Any]:
     question = problem["question"]
@@ -85,11 +88,12 @@ def process_problem(problem: Dict[str, Any], vllm_params: Dict[str, Any]) -> Dic
         "source": source
     }
 
+
 def main():
     parser = argparse.ArgumentParser(description="Sample math problems and evaluate pass@1 accuracy")
-    parser.add_argument("--input", type=str, default="/home/yangkai/data/data_process/rl_math_data.jsonl", 
+    parser.add_argument("--input", type=str, default="/home/share/reasoning/rl_math_data.jsonl", 
                         help="Path to math problems")
-    parser.add_argument("--output", type=str, default="/home/yangkai/data/data_process/sampled_problems_with_accuracy.jsonl",
+    parser.add_argument("--output", type=str, default="/home/share/reasoning/sampled_problems_with_accuracy.jsonl",
                         help="Path to save problems with accuracy")
     parser.add_argument("--temperature", type=float, default=0.0,
                         help="Sampling temperature")
@@ -97,7 +101,7 @@ def main():
                         help="Maximum number of tokens to generate")
     parser.add_argument("--sample-size", type=int, default=256,
                         help="Number of problems to sample")
-    parser.add_argument("--model", type=str, default="/home/yangkai/models/Qwen2.5-32B-Instruct",
+    parser.add_argument("--model", type=str, default="/home/share/reasoning/Qwen2.5-32B-Instruct",
                         help="Path to the model directory")
     parser.add_argument("--resume", action="store_true",
                         help="Resume from previous results")

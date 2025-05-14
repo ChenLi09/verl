@@ -34,6 +34,7 @@ big_math_rl_processed_path = os.path.join(data_dir, "big_math_rl_filtered.jsonl"
 dapo_math_processed_path = os.path.join(data_dir, "dapo_math_filtered.jsonl")
 skywork_math_processed_path = os.path.join(data_dir, "skywork_math_filtered.jsonl")
 
+
 def classify_math_question(question):
     inputs = math_tokenizer(question, return_tensors="pt", truncation=True, max_length=512).to(device)
     with torch.no_grad():
@@ -41,6 +42,7 @@ def classify_math_question(question):
         logits = outputs.logits
         predicted_class_id = torch.argmax(logits, dim=-1).item()
     return id2label[predicted_class_id]
+
 
 # Function to create a hash of the question content for deduplication
 def get_question_hash(question):

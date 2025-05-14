@@ -1,6 +1,3 @@
-
-
-
 def compute_score(solution_str, ground_truth) -> int:
     retval = 0
     try:
@@ -16,6 +13,7 @@ def compute_score(solution_str, ground_truth) -> int:
     # if retval != -1.0:
     #     retval += thinking_lambda * calculate_thinking_ratio(solution_str)
     return retval
+
 
 def calculate_thinking_ratio(solution_str: str) -> float:
     """

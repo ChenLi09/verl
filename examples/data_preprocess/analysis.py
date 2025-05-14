@@ -2,7 +2,7 @@ import json
 from collections import Counter
 
 # 数据路径
-file_path = "/home/yangkai/data/data_process/rl_math_data.jsonl"
+file_path = "/home/share/reasoning/rl_math_data.jsonl"
 
 # 初始化计数器
 level_counter = Counter()
@@ -55,4 +55,3 @@ print(f"{'Category':<20}{'Count':<10}{'Percentage':<10}")
 for category, count in category_counter.most_common():
     percent = (count / total) * 100
     print(f"{category:<20}{count:<10}{percent:.2f}%")
-
