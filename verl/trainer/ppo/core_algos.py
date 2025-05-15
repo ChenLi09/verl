@@ -236,24 +236,32 @@ def compute_agpo_outcome_advantage(
         # Only apply softmax to valid cases
         if len(valid_indices) > 0:
             valid_weights = advantage_weights[valid_indices]
-            valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * len(valid_indices)
+            valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * (0.1) + 1
             advantage_weights[valid_indices] = valid_weights
 
         all_correct_ratio = all_correct_count / bsz
         all_incorrect_ratio = all_incorrect_count / bsz
 
+        # for i in range(bsz):
+        #     if all_correct_count_dict[i] == 1:
+        #         scores[i] = torch.tensor(scaling_factor / all_correct_ratio)
+        #         continue
+        #     if all_incorrect_count_dict[i] == 1:
+        #         scores[i] = torch.tensor(-1.0 * scaling_factor / all_incorrect_ratio)
+        #         continue
+        #     if norm_adv_by_std_in_grpo:
+        #         scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
+        #     else:
+        #         scores[i] = scores[i] - id2mean[index[i]]
+        #     scores[i] = scores[i] * advantage_weights[i]
+
         for i in range(bsz):
-            if all_correct_count_dict[i] == 1:
-                scores[i] = torch.tensor(scaling_factor / all_correct_ratio)
-                continue
-            if all_incorrect_count_dict[i] == 1:
-                scores[i] = torch.tensor(-1.0 * scaling_factor / all_incorrect_ratio)
-                continue
             if norm_adv_by_std_in_grpo:
                 scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
             else:
                 scores[i] = scores[i] - id2mean[index[i]]
-            scores[i] = scores[i] * advantage_weights[i]
+            if all_correct_count_dict[i] != 1 and all_incorrect_count_dict[i] != 1:
+                scores[i] = scores[i] * advantage_weights[i]
 
         scores = scores.unsqueeze(-1) * response_mask
 
@@ -506,9 +514,13 @@ def compute_policy_loss(
         + f" but get the value: {clip_ratio_c}."
     )
 
+    # Create a mask for non-zero advantages
+    advantage_mask = (advantages != 0).float()
+    # Combine with response mask
+    combined_mask = response_mask * advantage_mask
     negative_approx_kl = log_prob - old_log_prob
     ratio = torch.exp(negative_approx_kl)
-    ppo_kl = verl_F.masked_mean(-negative_approx_kl, response_mask)
+    ppo_kl = verl_F.masked_mean(-negative_approx_kl, combined_mask)
 
     pg_losses1 = -advantages * ratio
     if cliprange_low is None:
@@ -517,20 +529,20 @@ def compute_policy_loss(
         cliprange_high = cliprange
     pg_losses2 = -advantages * torch.clamp(
         ratio, 1 - cliprange_low, 1 + cliprange_high
-    )  # - clip(ratio, 1-cliprange, 1+cliprange) * A
+    )
     clip_pg_losses1 = torch.maximum(
         pg_losses1, pg_losses2
-    )  # max(-ratio * A, -clip(ratio, 1-cliprange, 1+cliprange) * A)
-    pg_clipfrac = verl_F.masked_mean(torch.gt(pg_losses2, pg_losses1).float(), response_mask)
+    )
+    pg_clipfrac = verl_F.masked_mean(torch.gt(pg_losses2, pg_losses1).float(), combined_mask)
 
     pg_losses3 = -advantages * clip_ratio_c
     clip_pg_losses2 = torch.min(pg_losses3, clip_pg_losses1)
     pg_clipfrac_lower = verl_F.masked_mean(
-        torch.gt(clip_pg_losses1, pg_losses3) * (advantages < 0).float(), response_mask
+        torch.gt(clip_pg_losses1, pg_losses3) * (advantages < 0).float(), combined_mask
     )
 
     pg_losses = torch.where(advantages < 0, clip_pg_losses2, clip_pg_losses1)
-    pg_loss = agg_loss(loss_mat=pg_losses, loss_mask=response_mask, loss_agg_mode=loss_agg_mode)
+    pg_loss = agg_loss(loss_mat=pg_losses, loss_mask=combined_mask, loss_agg_mode=loss_agg_mode)
 
     return pg_loss, pg_clipfrac, ppo_kl, pg_clipfrac_lower
 
