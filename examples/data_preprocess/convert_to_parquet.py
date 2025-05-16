@@ -121,12 +121,12 @@ if __name__ == '__main__':
     print("\n===== SAMPLE FROM PROCESSED DATASET =====")
     print(f"Sample index: {sample_idx}")
     sample = train_dataset[sample_idx]
-    print(f"Prompt: {sample['prompt'][0]['content']}...")  # Show first 200 chars of prompt
+    print(f"Prompt: {sample['prompt'][0]['content']}")  # Show first 200 chars of prompt
     print(f"Token length: {len(tokenizer.encode(sample['prompt'][0]['content']))}")
     print(f"Data source: {sample['data_source']}")
     print(f"Ability: {sample['ability']}")
     if 'ground_truth' in sample['reward_model']:
-        print(f"Ground truth: {sample['reward_model']['ground_truth']}...")
+        print(f"Ground truth: {sample['reward_model']['ground_truth']}")
     print("==========================================\n")
 
     local_dir = args.local_dir
