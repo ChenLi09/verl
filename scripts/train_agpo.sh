@@ -1,8 +1,8 @@
 # basics
-project_name='AGPO_7B_comparison'
-exp_name='Modified-Updated-m1-AGPO-Qwen2.5-7B'
+project_name='AGPO_exp'
+exp_name='loss-clip-no-mask-AGPO-Qwen2.5-7B'
 
-adv_estimator=agpo
+adv_estimator=grpo
 
 max_prompt_length=2192
 max_response_length=$((1024 * 8))
@@ -26,12 +26,11 @@ clip_ratio_high=0.2
 NNODES=1
 
 # Paths
-RAY_DATA_HOME="/home/liunazhou"
-CKPT_HOME="/mnt/beegfs/liunazhou"
-MODEL_PATH=${MODEL_PATH:-"/home/share/data/model/Qwen2.5-7B"}
-CKPTS_DIR=${CKPTS_DIR:-"${CKPT_HOME}/ckpt/${project_name}/${exp_name}"}
-TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/data/math/math_and_dapo_train_05_14.parquet"}
-TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/data/math/gsm_hard_math_500_test_05_14.parquet"}
+RAY_DATA_HOME="/home/share/reasoning"
+MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/Qwen2.5-7B"}
+CKPTS_DIR=${CKPTS_DIR:-"${RAY_DATA_HOME}/${project_name}/${exp_name}"}
+TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/math_and_dapo_train_05_14.parquet"}
+TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/gsm_hard_math_500_test_05_14.parquet"}
 
 # Algorithm
 temperature=1.0
@@ -83,7 +82,7 @@ CMD="python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.max_num_batched_tokens=${actor_ppo_max_token_len} \
     actor_rollout_ref.rollout.temperature=${temperature} \
     actor_rollout_ref.rollout.top_p=${top_p} \
-    actor_rollout_ref.rollout.top_k=\"${top_k}\" \
+    actor_rollout_ref.rollout.top_k=${top_k} \
     actor_rollout_ref.rollout.val_kwargs.temperature=${val_temperature} \
     actor_rollout_ref.rollout.val_kwargs.top_p=${val_top_p} \
     actor_rollout_ref.rollout.val_kwargs.top_k=${val_top_k} \
@@ -103,8 +102,8 @@ CMD="python3 -m verl.trainer.main_ppo \
     trainer.project_name=\"${project_name}\" \
     trainer.experiment_name=\"${exp_name}\" \
     trainer.default_local_dir=\"${CKPTS_DIR}\" \
-    trainer.n_gpus_per_node=4 \
-    trainer.nnodes=\"${NNODES}\" \
+    trainer.n_gpus_per_node=8 \
+    trainer.nnodes=${NNODES} \
     trainer.val_before_train=True \
     trainer.test_freq=25 \
     trainer.save_freq=25 \
