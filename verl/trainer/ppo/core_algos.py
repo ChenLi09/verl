@@ -236,7 +236,7 @@ def compute_agpo_outcome_advantage(
         # Only apply softmax to valid cases
         if len(valid_indices) > 0:
             valid_weights = advantage_weights[valid_indices]
-            valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * (0.1) + 1
+            valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * (0.5) + 1
             advantage_weights[valid_indices] = valid_weights
 
         all_correct_ratio = all_correct_count / bsz
