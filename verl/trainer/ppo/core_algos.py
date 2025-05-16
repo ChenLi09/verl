@@ -239,8 +239,8 @@ def compute_agpo_outcome_advantage(
             valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * (0.5) + 1
             advantage_weights[valid_indices] = valid_weights
 
-        all_correct_ratio = all_correct_count / bsz
-        all_incorrect_ratio = all_incorrect_count / bsz
+        # all_correct_ratio = all_correct_count / bsz
+        # all_incorrect_ratio = all_incorrect_count / bsz
 
         # for i in range(bsz):
         #     if all_correct_count_dict[i] == 1:
@@ -515,9 +515,11 @@ def compute_policy_loss(
     )
 
     # Create a mask for non-zero advantages
-    advantage_mask = (advantages != 0).float()
+    # advantage_mask = (advantages != 0).float()
     # Combine with response mask
-    combined_mask = response_mask * advantage_mask
+    # combined_mask = response_mask * advantage_mask
+    combined_mask = response_mask
+
     negative_approx_kl = log_prob - old_log_prob
     ratio = torch.exp(negative_approx_kl)
     ppo_kl = verl_F.masked_mean(-negative_approx_kl, combined_mask)
@@ -543,6 +545,9 @@ def compute_policy_loss(
 
     pg_losses = torch.where(advantages < 0, clip_pg_losses2, clip_pg_losses1)
     pg_loss = agg_loss(loss_mat=pg_losses, loss_mask=combined_mask, loss_agg_mode=loss_agg_mode)
+
+    lower_bound_loss = torch.tensor(0.0, device=pg_loss.device)
+    pg_loss = torch.maximum(pg_loss, lower_bound_loss)
 
     return pg_loss, pg_clipfrac, ppo_kl, pg_clipfrac_lower
 
