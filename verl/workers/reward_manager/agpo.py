@@ -107,8 +107,8 @@ class AGPORewardManager:
                         print(f"[{key}]", value)
                 else:
                     print("[score]", score)
-        
-        # if self.num_examine == 0:
+
+        # if self.num_examine == 0: 
         #     length_reward = [1] * len(data)
         #     for _, group in problem_idx_mapping.items():
         #         idx_all_correct = [i for i in group if reward_by_problem[i] == 1]

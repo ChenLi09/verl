@@ -69,7 +69,7 @@ if __name__ == "__main__":
         if level_str and isinstance(level_str, str) and "Level " in level_str:
             try:
                 level_num = int(level_str.split("Level ")[1])
-                return level_num >= 3
+                return level_num >= 4
             except ValueError:
                 return False
         return False
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     def filter_dapo_solve_rate(example):
         solve_rate = example.get("Qwen3-32B_solve_rate")
         if solve_rate is not None:
-            return 0.5 <= solve_rate <= 0.8
+            return 0.2 <= solve_rate <= 0.8
         return False
     
     train_dataset1 = train_dataset1.filter(filter_math_level)
@@ -89,6 +89,8 @@ if __name__ == "__main__":
     train_dataset2 = train_dataset2.map(function=make_map_fn("train", data_source2), with_indices=True, remove_columns=dataset2["train"].column_names)
     train_dataset2 = train_dataset2.filter(filter_by_length)
 
+    print(f"train_dataset1 length: {len(train_dataset1)}")
+    print(f"train_dataset2 length: {len(train_dataset2)}")
     combined_train_dataset = datasets.concatenate_datasets([train_dataset1, train_dataset2])
     
     def deduplicate_dataset(dataset, method="exact"):
@@ -136,11 +138,13 @@ if __name__ == "__main__":
         return dataset.select(indices_to_keep)
     
     deduplicated_dataset = deduplicate_dataset(combined_train_dataset, method="normalized")
+
+    
     
     local_dir = os.path.expanduser(args.local_dir)
     os.makedirs(local_dir, exist_ok=True)
 
-    output_file = os.path.join(local_dir, "math_and_dapo_train_05_14.parquet")
+    output_file = os.path.join(local_dir, "math_and_dapo_train_hard_05_16.parquet")
     deduplicated_dataset.to_parquet(output_file)
     print(f"Deduplicated dataset saved to {output_file}")
 

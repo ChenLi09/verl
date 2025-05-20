@@ -234,10 +234,10 @@ def compute_agpo_outcome_advantage(
                 valid_indices.append(i)         
 
         # Only apply softmax to valid cases
-        if len(valid_indices) > 0:
-            valid_weights = advantage_weights[valid_indices]
-            valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * (0.5) + 1
-            advantage_weights[valid_indices] = valid_weights
+        # if len(valid_indices) > 0:
+        #     valid_weights = advantage_weights[valid_indices]
+        #     valid_weights = torch.nn.functional.softmax(valid_weights, dim=0) * (0.5) + 1
+        #     advantage_weights[valid_indices] = valid_weights
 
         # all_correct_ratio = all_correct_count / bsz
         # all_incorrect_ratio = all_incorrect_count / bsz
@@ -260,8 +260,8 @@ def compute_agpo_outcome_advantage(
                 scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
             else:
                 scores[i] = scores[i] - id2mean[index[i]]
-            if all_correct_count_dict[i] != 1 and all_incorrect_count_dict[i] != 1:
-                scores[i] = scores[i] * advantage_weights[i]
+            # if all_correct_count_dict[i] != 1 and all_incorrect_count_dict[i] != 1:
+            #     scores[i] = scores[i] * advantage_weights[i]
 
         scores = scores.unsqueeze(-1) * response_mask
 
@@ -515,10 +515,13 @@ def compute_policy_loss(
     )
 
     # Create a mask for non-zero advantages
-    # advantage_mask = (advantages != 0).float()
-    # Combine with response mask
-    # combined_mask = response_mask * advantage_mask
-    combined_mask = response_mask
+    USE_ADVANTAGE_MASK = True
+    if USE_ADVANTAGE_MASK:
+        advantage_mask = (advantages != 0).float()
+        # Combine with response mask
+        combined_mask = response_mask * advantage_mask
+    else:
+        combined_mask = response_mask
 
     negative_approx_kl = log_prob - old_log_prob
     ratio = torch.exp(negative_approx_kl)
