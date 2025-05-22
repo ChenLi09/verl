@@ -1,6 +1,6 @@
 # basics
-project_name='AGPO_7B_comparison'
-exp_name='GRPO-Qwen2.5-7B'
+project_name='AGPO_7B'
+exp_name='GRPO-7B-baseline-h20'
 
 adv_estimator=grpo
 
@@ -19,7 +19,7 @@ CKPT_HOME="/mnt/beegfs/liunazhou"
 MODEL_PATH=${MODEL_PATH:-"/home/share/data/model/Qwen2.5-7B"}
 CKPTS_DIR=${CKPTS_DIR:-"${CKPT_HOME}/ckpt/${project_name}/${exp_name}"}
 TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/data/math/math_and_dapo_train_05_14.parquet"}
-TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/data/math/gsm_hard_math_500_test_05_14.parquet"}
+TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/data/math_500/math_500.parquet"}
 
 # Algorithm
 temperature=1.0
@@ -87,8 +87,8 @@ CMD="python3 -m verl.trainer.main_ppo \
     trainer.val_before_train=True \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes="${NNODES}" \
-    trainer.save_freq=25 \
-    trainer.test_freq=25 \
+    trainer.save_freq=20 \
+    trainer.test_freq=20 \
     trainer.total_epochs=1"
 
 

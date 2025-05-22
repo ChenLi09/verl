@@ -1,6 +1,6 @@
 # basics
 project_name='AGPO_exp'
-exp_name='loss-clip-no-mask-AGPO-Qwen2.5-7B'
+exp_name='AGPO-m1-7B-continue-training'
 
 adv_estimator=grpo
 
@@ -26,11 +26,12 @@ clip_ratio_high=0.2
 NNODES=1
 
 # Paths
-RAY_DATA_HOME="/home/share/reasoning"
-MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/Qwen2.5-7B"}
-CKPTS_DIR=${CKPTS_DIR:-"${RAY_DATA_HOME}/${project_name}/${exp_name}"}
-TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/math_and_dapo_train_05_14.parquet"}
-TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/gsm_hard_math_500_test_05_14.parquet"}
+RAY_DATA_HOME="/home/liunazhou"
+CKPT_HOME="/home/liunazhou"
+MODEL_PATH=${MODEL_PATH:-"/home/share/data/model/Qwen2.5-7B"}
+CKPTS_DIR=${CKPTS_DIR:-"${CKPT_HOME}/ckpt/${project_name}/${exp_name}"}
+TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/data/math/math_and_dapo_train_05_14.parquet"}
+TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/data/math_500/math_500.parquet"}
 
 # Algorithm
 temperature=1.0
@@ -49,7 +50,6 @@ actor_ppo_max_token_len=$((max_prompt_length + max_response_length))
 infer_ppo_max_token_len=$((max_prompt_length + max_response_length))
 offload=True
 
-# Build the command
 CMD="python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=${adv_estimator} \
     algorithm.use_kl_in_reward=${use_kl_in_reward} \
@@ -97,18 +97,18 @@ CMD="python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=${infer_ppo_max_token_len} \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=${use_dynamic_bsz} \
     actor_rollout_ref.ref.fsdp_config.param_offload=${offload} \
-    reward_model.reward_manager=agpo \
     trainer.logger=['console','wandb'] \
     trainer.project_name=\"${project_name}\" \
     trainer.experiment_name=\"${exp_name}\" \
     trainer.default_local_dir=\"${CKPTS_DIR}\" \
-    trainer.n_gpus_per_node=8 \
+    trainer.n_gpus_per_node=4 \
     trainer.nnodes=${NNODES} \
     trainer.val_before_train=True \
-    trainer.test_freq=25 \
-    trainer.save_freq=25 \
-    trainer.total_epochs=1 \
-    trainer.resume_mode=auto"
+    trainer.test_freq=20 \
+    trainer.save_freq=20 \
+    trainer.total_epochs=2 \
+    trainer.resume_mode=from_path \
+    trainer.resume_from_path=\"/home/liunazhou/ckpt/GRPO-clip-loss-with-mask-length-reward-Qwen2.5-7B/global_step_225\""
 
 # Check NNODES and execute accordingly
 if [ "$NNODES" -gt 1 ]; then
