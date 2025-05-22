@@ -1031,9 +1031,17 @@ class RayPPOTrainer:
                         ):
                             prompt_uid2metric_vals[uid].append(metric_val)
 
+                        all_c = 0
+                        all_w = 0
                         prompt_uid2metric_std = {}
                         for prompt_uid, metric_vals in prompt_uid2metric_vals.items():
                             prompt_uid2metric_std[prompt_uid] = np.std(metric_vals)
+                            if np.mean(metric_vals) == 1:
+                                all_c += 1
+                            elif np.mean(metric_vals) == 0:
+                                all_w += 1
+                        print("all correct: ", all_c)
+                        print("all wrong: ", all_w)
 
                         kept_prompt_uids = [
                             uid

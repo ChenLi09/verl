@@ -1,14 +1,14 @@
 # basics
 project_name='AGPO'
-exp_name='AGPO-Qwen3-8B'
+exp_name='AGPO-R1-Distill-7B'
 
 adv_estimator=agpo
 
-max_prompt_length=2192
-max_response_length=$((1024 * 8))
-train_prompt_bsz=128
+max_prompt_length=2048
+max_response_length=$((1024 * 32))
+train_prompt_bsz=64
 n_resp_per_prompt=16
-train_prompt_mini_bsz=32
+train_prompt_mini_bsz=16
 
 enable_filter_groups=True
 filter_groups_metric=acc
@@ -27,9 +27,9 @@ NNODES=4
 
 # Paths
 RAY_DATA_HOME="/home/share/reasoning"
-MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/Qwen3-8B"}
+MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/DeepSeek-R1-Distill-Qwen-7B"}
 CKPTS_DIR=${CKPTS_DIR:-"${RAY_DATA_HOME}/${project_name}/${exp_name}"}
-TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/dapo-math-17k-qwen3.parquet"}
+TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/rl_math_data.parquet"}
 TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/aime-2024-qwen3.parquet"}
 
 # Algorithm
