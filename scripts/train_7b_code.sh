@@ -1,11 +1,11 @@
 # basics
-project_name='Code_exp'
-exp_name='7b_code_grpo'
+project_name='Code'
+exp_name='R1-Distill-7B-GRPO-0606'
 
 adv_estimator=grpo
 
-max_prompt_length=2192
-max_response_length=$((1024 * 8))
+max_prompt_length=2048
+max_response_length=$((1024 * 32))
 train_prompt_bsz=32
 n_resp_per_prompt=8
 train_prompt_mini_bsz=8
@@ -22,19 +22,19 @@ clip_ratio_high=0.2
 NNODES=1
 
 # Paths
-RAY_DATA_HOME="/home/liunazhou"
-CKPT_HOME="/home/liunazhou"
-MODEL_PATH=${MODEL_PATH:-"/home/share/data/model/Qwen2.5-7B"}
-CKPTS_DIR=${CKPTS_DIR:-"${CKPT_HOME}/ckpt/${project_name}/${exp_name}"}
-TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/data/codeforces/train.parquet"}
-TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/data/livecodebench/livecodebench.parquet"}
+RAY_DATA_HOME="/home/share/reasoning"
+MODEL_PATH=${MODEL_PATH:-"${RAY_DATA_HOME}/DeepSeek-R1-Distill-Qwen-7B"}
+CKPTS_DIR=${CKPTS_DIR:-"${RAY_DATA_HOME}/${project_name}/${exp_name}"}
+TRAIN_FILE=${TRAIN_FILE:-"${RAY_DATA_HOME}/rl_code_data_0528.parquet"}
+TEST_FILE=${TEST_FILE:-"${RAY_DATA_HOME}/code_test.parquet"}
+# TEST_FILE=${TEST_FILE:-"/home/lichen/verl/test.parquet"}
 
 # Algorithm
 temperature=1.0
 top_p=1.0
 top_k=-1 # 0 for HF rollout, -1 for vLLM rollout
 
-val_temperature=0.0
+val_temperature=0.6
 val_top_p=0.95
 val_top_k=20
 
@@ -95,12 +95,12 @@ CMD="python3 -m verl.trainer.main_ppo \
     trainer.project_name=\"${project_name}\" \
     trainer.experiment_name=\"${exp_name}\" \
     trainer.default_local_dir=\"${CKPTS_DIR}\" \
-    trainer.n_gpus_per_node=4 \
+    trainer.n_gpus_per_node=8 \
     trainer.nnodes=${NNODES} \
     trainer.val_before_train=True \
-    trainer.test_freq=20 \
+    trainer.test_freq=10 \
     trainer.save_freq=20 \
-    trainer.total_epochs=4 \
+    trainer.total_epochs=1 \
     trainer.resume_mode=auto"
 
 
