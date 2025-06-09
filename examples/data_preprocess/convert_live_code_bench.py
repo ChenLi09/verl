@@ -71,8 +71,7 @@ def load_local_dataset(file_path):
                 dataset.append(item)
             except json.JSONDecodeError:
                 print(f"Warning: Could not parse line: {line[:100]}...")
-    
-    print(len(dataset))
+
     new_dataset = filter_date(dataset, "2024-10-01", "2025-01-31")
 
     for item in new_dataset:
@@ -84,9 +83,9 @@ def load_local_dataset(file_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--local_dir', default='./')
+    parser.add_argument('--local_dir', default='/home/share/reasoning')
     parser.add_argument('--hdfs_dir', default=None)
-    parser.add_argument('--local_dataset', default='./test5.jsonl')
+    parser.add_argument('--local_dataset', default='/home/share/reasoning/livecodebench/test5.jsonl')
 
     args = parser.parse_args()
     tokenizer = AutoTokenizer.from_pretrained("/home/share/reasoning/DeepSeek-R1-Distill-Qwen-7B")
@@ -158,4 +157,4 @@ if __name__ == '__main__':
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir
 
-    train_dataset.to_parquet(os.path.join(local_dir, 'test.parquet'))
+    train_dataset.to_parquet(os.path.join(local_dir, 'code_test.parquet'))
