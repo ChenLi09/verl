@@ -49,6 +49,9 @@ def _default_compute_score(data_source, solution_str, ground_truth, extra_info=N
         from . import prime_code
 
         res = prime_code.compute_score(solution_str, ground_truth, continuous=True)
+
+        # from . import livecodebench
+        # res = livecodebench.compute_score(solution_str, ground_truth, is_binary_reward=False, is_power4_reward=False)
     elif data_source in ["hiyouga/geometry3k"]:
         from . import geo3k
 

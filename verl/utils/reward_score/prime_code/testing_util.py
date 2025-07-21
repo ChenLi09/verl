@@ -145,7 +145,7 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
                 signal.alarm(0)
                 error_traceback = traceback.format_exc()
                 if debug:
-                    print(f"type 0 compilation error = {e}")
+                    print(f"type 0 compilation error = {e}, {error_traceback}", file=open("/home/liunazhou/verl1/code_output_base_model_training.log", "a"))
                 results.append(-2)
                 return results, {
                     "error": repr(e),
@@ -194,7 +194,8 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
 
             sol += tmp_test
             if debug:
-                print(f"sol = {sol}", file=open("/home/lichen/verl/output_1.log", "a"))
+                # print(f"sol = {sol}", file=open("/home/lichen/verl/output_1.log", "a"))
+                print(f"sol = {sol}")
             method_name = "code"
             signal.alarm(timeout)
             try:
@@ -205,7 +206,7 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
                 signal.alarm(0)
                 error_traceback = traceback.format_exc()
                 if debug:
-                    print(f"type 1 compilation error = {e}")
+                    print(f"type 1 compilation error = {e}, {error_traceback}", file=open("/home/liunazhou/verl1/code_output_base_model_training.log", "a"))
                 results.append(-2)
                 return results, {
                     "error": repr(e),
@@ -223,7 +224,7 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
             signal.alarm(0)
             error_traceback = traceback.format_exc()
             e = sys.exc_info()
-            print(f"unable to get function error = {e}")
+            print(f"unable to get function error = {e}", file=open("/home/liunazhou/verl1/code_output_base_model_training.log", "a"))
             results.append(-2)
             return results, {
                 "error": repr(e),
@@ -265,9 +266,12 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
                 True
 
             if debug:
+                # print(
+                #     f"time: {datetime.now().time()} testing index = {index}  inputs = {inputs}, {type(inputs)}. type = {which_type}"
+                # , file=open("/home/lichen/verl/output_1.log", "a"))
                 print(
                     f"time: {datetime.now().time()} testing index = {index}  inputs = {inputs}, {type(inputs)}. type = {which_type}"
-                , file=open("/home/lichen/verl/output_1.log", "a"))
+                )
             if which_type == CODE_TYPE.call_based:  # Call-based
                 signal.alarm(timeout)
                 faulthandler.enable()
@@ -308,7 +312,7 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
                     error_traceback = traceback.format_exc()
                     faulthandler.disable()
                     if debug:
-                        print(f"Standard input runtime error or time limit exceeded error = {e}")
+                        print(f"Call-based runtime error or time limit exceeded error = {e}", file=open("/home/liunazhou/verl1/code_output_base_model_training.log", "a"))
                     results.append(-1)
                     if "timeoutexception" in repr(e).lower():
                         return results, {
@@ -354,7 +358,7 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
                         # runtime error or took too long
                         signal.alarm(0)
                         error_traceback = traceback.format_exc()
-                        print(f"Call-based runtime error or time limit exceeded error = {repr(e)}{e}")
+                        print(f"Standard input runtime error or time limit exceeded error = {e}, sol={sol}, in={in_outs['inputs'][index]}, out={in_outs['outputs'][index]}", file=open("/home/liunazhou/verl1/code_output_base_model_training.log", "a"))
                         results.append(-1)
                         if "timeoutexception" in repr(e).lower():
                             return results, {
@@ -384,15 +388,18 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
                         if not isinstance(inputs, list):
                             print(
                                 f"not passed output = {output}, test outputs = {in_outs['outputs'][index]}, inputs = {inputs.replace(nl, ' new-line ')}, {type(inputs)}, {output == [in_outs['outputs'][index]]}"
-                            , file=open("/home/lichen/verl/output_1.log", "a"))
+                            # , file=open("/home/lichen/verl/output_1.log", "a"))
+                            )
                         else:
                             print(
                                 f"not passed output = {output}, test outputs = {in_outs['outputs'][index]}, inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}"
-                            , file=open("/home/lichen/verl/output_1.log", "a"))
+                            # , file=open("/home/lichen/verl/output_1.log", "a"))
+                            )
                     continue
 
                 if passed and debug:
-                    print(f"==> output = {output}, test outputs = {in_outs['outputs'][index]}", file=open("/home/lichen/verl/output_1.log", "a"))
+                    # print(f"==> output = {output}, test outputs = {in_outs['outputs'][index]}", file=open("/home/lichen/verl/output_1.log", "a"))
+                    print(f"==> output = {output}, test outputs = {in_outs['outputs'][index]}")
 
                 if custom_compare_(output, in_outs["outputs"][index]):
                     tmp_result = True
@@ -719,6 +726,6 @@ def reliability_guard(maximum_memory_bytes=None):
 
 
 if __name__ == "__main__":
-    in_outs = {"inputs": ["680"], "outputs": ["68"]}
-    test = "def remove_trailing_zeros(num):\n    for i in range(len(num)-1, -1, -1):\n        if num[i] != '0':\n            return num[:i+1]\n    return num  # This line is technically unreachable due to problem constraints\n\nnum = input()\nprint(remove_trailing_zeros(num))"
+    in_outs = {'inputs': ['[-3,2,-2,-1,3,-2,3]'], 'outputs': ['7'], 'fn_name': 'maxSubarraySum'}
+    test = """import sys\n\ndef max_subarray(arr):\n    if not arr:\n        return 0\n    max_current = max_global = arr[0]\n    for num in arr[1:]:\n        max_current = max(num, max_current + num)\n        max_global = max(max_global, max_current)\n    return max_global\n\ndef main():\n    nums = list(map(int, sys.stdin.readline().split()))\n    if not nums:\n        print(0)\n        return\n    \n    base_max = max_subarray(nums)\n    unique_x = set(nums)\n    \n    max_after_removal = 0\n    for x in unique_x:\n        temp = [num for num in nums if num != x]\n        current_max = max_subarray(temp)\n        if current_max > max_after_removal:\n            max_after_removal = current_max\n    \n    result = max(base_max, max_after_removal)\n    print(result)\n\nif __name__ == "__main__":\n    main()\n"""
     print(run_test(in_outs, test, debug=True, timeout=5))
