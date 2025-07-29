@@ -1,57 +1,37 @@
-import json
 from collections import Counter
+from datasets import Dataset
 
-# 数据路径
-file_path = "/home/share/reasoning/rl_math_data.jsonl"
+file_path = "/home/share/reasoning/rl_math_data.parquet"
 
-# 初始化计数器
+train_dataset = Dataset.from_parquet(file_path)
+
+# print level and source distribution
 level_counter = Counter()
 source_counter = Counter()
-category_counter = Counter()
-total = 0
+math_category_counter = Counter()
 
-# 读取文件并统计
-with open(file_path, "r", encoding="utf-8") as f:
-    for line in f:
-        try:
-            item = json.loads(line)
-            extra = item.get("extra_params", {})
-            level = extra.get("level")
-            source = extra.get("source")
-            category = extra.get("math_category")
+for example in train_dataset:
+    level_counter[example['extra_info']['level']] += 1
+    source_counter[example['extra_info']['original_source']] += 1
+    math_category_counter[example['extra_info']['math_category']] += 1
 
-            if level is not None:
-                level_counter[level] += 1
-                total += 1
-
-            if source is not None:
-                source_counter[source] += 1
-
-            if category is not None:
-                category_counter[category] += 1
-
-        except json.JSONDecodeError:
-            continue
-
-# 打印 level 分布
-print(f"Total samples: {total}")
-print(f"\nLevel distribution:")
+# print level distribution
 print(f"{'Level':<8}{'Count':<10}{'Percentage':<10}")
 for level in sorted(level_counter.keys()):
     count = level_counter[level]
-    percent = (count / total) * 100
+    percent = (count / len(train_dataset)) * 100
     print(f"{level:<8}{count:<10}{percent:.2f}%")
 
-# 打印 source 分布
-print(f"\nSource distribution:")
+# print source distribution
 print(f"{'Source':<25}{'Count':<10}{'Percentage':<10}")
-for source, count in source_counter.most_common():
-    percent = (count / total) * 100
+for source in sorted(source_counter.keys()):
+    count = source_counter[source]
+    percent = (count / len(train_dataset)) * 100
     print(f"{source:<25}{count:<10}{percent:.2f}%")
 
-# 打印 math_category 分布
-print(f"\nMath Category distribution:")
-print(f"{'Category':<20}{'Count':<10}{'Percentage':<10}")
-for category, count in category_counter.most_common():
-    percent = (count / total) * 100
+# print math category distribution
+print(f"{'Math Category':<20}{'Count':<10}{'Percentage':<10}")
+for category in sorted(math_category_counter.keys()):
+    count = math_category_counter[category]
+    percent = (count / len(train_dataset)) * 100
     print(f"{category:<20}{count:<10}{percent:.2f}%")

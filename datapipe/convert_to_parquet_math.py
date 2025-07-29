@@ -1,12 +1,14 @@
 import os
 import datasets
 import json
+import random
 
 from verl.utils.hdfs_io import copy, makedirs
 import argparse
 from transformers import AutoTokenizer
 from verl.utils.reward_score.math import last_boxed_only_string, remove_boxed
 
+random.seed(2025)
 
 def extract_answer(solution_str):
     return remove_boxed(last_boxed_only_string(solution_str))
@@ -27,7 +29,7 @@ def load_local_dataset(file_path):
         print(f"Warning: Local dataset file {file_path} does not exist")
         return datasets.Dataset.from_dict({"problem": [], "solution": []})
 
-    data = {"question": [], "answer": []}
+    data = {"question": [], "answer": [], "source": [], "level": [], "math_category": []}
 
     # bigmath_cnt = 0
     source_cnt = {}
@@ -35,7 +37,7 @@ def load_local_dataset(file_path):
         for line in f:
             try:
                 item = json.loads(line.strip())
-                if item["extra_params"]["level"] in [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] and is_numbers(item["answer"]):
+                if item["extra_params"]["mapped_level"] in [5, 6, 7, 8, 9, 10, 11, 12, 13, 14] and is_numbers(item["answer"]):
                     source = item["extra_params"]["source"]
                     # if source == "big_math_rl_verified":
                     #     bigmath_cnt += 1
@@ -44,6 +46,9 @@ def load_local_dataset(file_path):
 
                     data["question"].append(item["question"])
                     data["answer"].append(item["answer"])
+                    data["source"].append(source)
+                    data["level"].append(item["extra_params"]["mapped_level"])
+                    data["math_category"].append(item["extra_params"]["math_category"])
                     if source not in source_cnt:
                         source_cnt[source] = 0
                     source_cnt[source] += 1
@@ -54,16 +59,60 @@ def load_local_dataset(file_path):
     return datasets.Dataset.from_dict(data)
 
 
+def sample_dataset_by_source(dataset, big_math_limit=2000, other_sources_limit=10000):
+    """
+    Sample data from dataset based on data sources.
+    
+    Args:
+        dataset: The input dataset with 'source' column
+        big_math_limit: Number of samples to take from 'big_math_rl_verified' source
+        other_sources_limit: Total number of samples to take from other sources
+    
+    Returns:
+        Sampled dataset
+    """
+    
+    # Separate data by source
+    big_math_indices = []
+    other_indices = []
+    
+    for idx, source in enumerate(dataset['source']):
+        if source == "big_math_rl_verified":
+            big_math_indices.append(idx)
+        else:
+            other_indices.append(idx)
+    
+    print(f"Found {len(big_math_indices)} samples from big_math_rl_verified")
+    print(f"Found {len(other_indices)} samples from other sources")
+    
+
+    sampled_big_math = random.sample(big_math_indices, big_math_limit)
+    
+    sampled_other = random.sample(other_indices, other_sources_limit)
+    
+    # Combine indices
+    all_sampled_indices = sampled_big_math + sampled_other
+    random.shuffle(all_sampled_indices)  # Shuffle to mix sources
+    
+    print(f"Sampled {len(sampled_big_math)} from big_math_rl_verified")
+    print(f"Sampled {len(sampled_other)} from other sources")
+    print(f"Total sampled: {len(all_sampled_indices)}")
+    
+    sampled_dataset = dataset.select(all_sampled_indices)
+    
+    return sampled_dataset
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--local_dir', default='/home/share/reasoning')
     parser.add_argument('--hdfs_dir', default=None)
-    parser.add_argument('--local_dataset', default='/home/share/reasoning/rl_math_data_test.jsonl')
+    parser.add_argument('--local_dataset', default='/home/share/reasoning/rl_math_data.jsonl')
 
     args = parser.parse_args()
     tokenizer = AutoTokenizer.from_pretrained("/home/share/reasoning/DeepSeek-R1-Distill-Qwen-7B")
 
-    prompt_template = "{question} Let's think step by step and output the final answer within \\boxed{}."
+    # prompt_template = "{question} Let's think step by step and output the final answer within \\boxed{}."
 
     # add a row to each data item that represents a unique id
     def train_make_map_fn(split):
@@ -77,7 +126,7 @@ if __name__ == '__main__':
                 solution = example.pop('solution')
                 answer = extract_answer(solution)
 
-            question = prompt_template.format(question=question)
+            # question = prompt_template.format(question=question)
 
             data = {
                 "data_source": 'math_agpo',
@@ -93,6 +142,9 @@ if __name__ == '__main__':
                 "extra_info": {
                     'split': split,
                     'index': idx,
+                    'original_source': example['source'],
+                    'level': example['level'],
+                    'math_category': example['math_category']
                 }
             }
             return data
@@ -100,8 +152,12 @@ if __name__ == '__main__':
         return process_fn
 
     train_dataset = load_local_dataset(args.local_dataset)
-    train_dataset = train_dataset.map(function=train_make_map_fn('local'), with_indices=True)
     print(f"Loaded local dataset with {len(train_dataset)} examples")
+    
+    train_dataset = train_dataset.map(function=train_make_map_fn('local'), with_indices=True)
+
+    train_dataset = sample_dataset_by_source(train_dataset, big_math_limit=2000, other_sources_limit=10000)
+    print(f"After sampling: {len(train_dataset)} examples")
 
     max_token_length = 2048
 
